@@ -71,7 +71,7 @@ router.get('/stats' , verifyTokenAndAdmin, async(req, res) =>{
                 total: {$sum : 1}
             }}
         ])
-        res.status(200).json(data);
+        res.status(200).json(data.sort((a , b) => a._id - b._id));
     }catch(err) {
         res.status(500).json(err);
     }
