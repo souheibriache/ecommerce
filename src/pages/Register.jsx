@@ -1,5 +1,8 @@
 import styled from "styled-components";
 import { mobile } from "../responsive";
+import {useDispatch , useSelector} from 'react-redux';
+import {useState} from 'react'
+import { register } from "../redux/apiCalls";
 
 const Container = styled.div`
   width: 100vw;
@@ -55,22 +58,36 @@ const Button = styled.button`
 `;
 
 const Register = () => {
+  const [username , setUsername] = useState('')  
+  const [password , setpassword] = useState('');
+  const [email , setemail] = useState('');
+  const [confirmPassword , setconfirmPassword] = useState('');
+  const {isFetching , error } = useSelector(state => state.user)
+  const dispatch  = useDispatch();
+  const handleClick = (e) => {
+    e.preventDefault();
+    password === confirmPassword ? register(dispatch , {username , email, password})
+            : console.log('passwords not matching')
+  }
   return (
+
+    
+
     <Container>
       <Wrapper>
         <Title>CREATE AN ACCOUNT</Title>
         <Form>
           <Input placeholder="name" />
           <Input placeholder="last name" />
-          <Input placeholder="username" />
-          <Input placeholder="email" />
-          <Input placeholder="password" />
-          <Input placeholder="confirm password" />
+          <Input required placeholder="username" onChange={(e) => setUsername(e.target.value)} />
+          <Input required placeholder="email" type='email' onChange={(e) => setemail(e.target.value)} />
+          <Input required type="password" min={6} placeholder="password" onChange={(e) => setpassword(e.target.value)} />
+          <Input type="password" min={6} placeholder="confirm password" onChange={(e) => setconfirmPassword(e.target.value)} />
           <Agreement>
             By creating an account, I consent to the processing of my personal
             data in accordance with the <b>PRIVACY POLICY</b>
           </Agreement>
-          <Button>CREATE</Button>
+          <Button onClick={(e) =>handleClick(e)}>CREATE</Button>
         </Form>
       </Wrapper>
     </Container>

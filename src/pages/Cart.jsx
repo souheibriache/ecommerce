@@ -1,9 +1,15 @@
 import { Add, Remove } from "@material-ui/icons";
+import { useSelector, useDispatch } from "react-redux";
 import styled from "styled-components";
 import Anouncment from "../components/Anouncment";
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
 import { mobile } from "../responsive";
+import StripeCheckout from 'react-stripe-checkout'
+import { useEffect, useState } from "react";
+import { TOKEN, userRequest } from "../requestMethods";
+import { useNavigate } from 'react-router-dom'
+import { emptyingCart } from "../redux/cartRedux";
 
 const Container = styled.div``;
 
@@ -151,9 +157,88 @@ const Button = styled.button`
   background-color: black;
   color: white;
   font-weight: 600;
+  border: none;
+  cursor: pointer;
 `;
 
 const Cart = () => {
+  const pf = process.env.REACT_APP_PUBLIC_FOLDER
+  const cart = useSelector(state => state.cart)
+  const user = useSelector(state => state.user.currentUser)
+  const dispatch = useDispatch()
+  const publishableKey = process.env.REACT_APP_STRIPE
+
+  const [stripeToken, setStripeToken] = useState(null)
+
+  const onToken = (token) => {
+    setStripeToken(token)
+  }
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const makeRequest = async () => {
+      try {
+        const res = await userRequest.post('/checkout/payment', {
+          tokenId: stripeToken.id,
+          amount: cart.totalPrice * 100,
+
+        })
+        console.log(res.data)
+        const newOrder = {
+          userId: user._id,
+          products: cart.products.map(product => {
+            return { productId: product._id, quantity: product.quantity }
+          }),
+          amount: cart.totalPrice,
+          address: res.data.billing_details.address
+        }
+        console.log('new order' , newOrder)
+        const order = await userRequest.post('/orders', newOrder );
+        console.log('order', order)
+        dispatch(emptyingCart())
+        window.location.href = '/'
+        // navigate('/success', { data: res.data })
+      } catch (err) {
+        console.log(err)
+      }
+    }
+    stripeToken && cart.totalPrice > 1 && makeRequest()
+  }, [stripeToken])
+
+  const orderTest = async () => {
+    try {
+      var myHeaders = new Headers();
+      myHeaders.append("token", `Bearer ${TOKEN}`);
+      myHeaders.append("Content-Type", "application/x-www-form-urlencoded");
+
+      var urlencoded = new URLSearchParams();
+      urlencoded.append("userId", user._id);
+      urlencoded.append("address", "MONACO");
+      urlencoded.append("amount", cart.totalPrice);
+      urlencoded.append("status", "pending");
+
+      var requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        body: urlencoded,
+        redirect: 'follow'
+      };
+
+      fetch("http://localhost:5000/api/orders", requestOptions)
+        .then(response => response.text())
+        .then(result => console.log(result))
+        .catch(error => console.log('error', error));
+    } catch (err) {
+      console.log(err)
+    }
+  }
+
+  const CheckoutButton = () => (<StripeCheckout name='ecommerce' image='https://lh3.google.com/u/0/ogw/ADea4I7Q6SYzYT8CVqXYGuuLC3tUHNKxsmCaqwyxmQY1=s192-c-mo'
+    billingAddress shippingAddress description={'your total is $ ' + cart.totalPrice} amount={cart.totalPrice * 100} token={onToken}
+    stripeKey={publishableKey}>
+    <Button>CHECKOUT NOW</Button>
+  </StripeCheckout>)
+
   return (
     <Container>
       <Navbar />
@@ -161,72 +246,56 @@ const Cart = () => {
       <Wrapper>
         <Title>YOUR BAG</Title>
         <Top>
-          <TopButton>CONTINUE SHOPPING</TopButton>
+          <TopButton onClick={() => navigate('/products')} >CONTINUE SHOPPING</TopButton>
           <TopTexts>
-            <TopText>Shopping Bag(2)</TopText>
+            <TopText onClick={(e) => orderTest()} >Shopping Bag(2)</TopText>
             <TopText>Your Wishlist (0)</TopText>
           </TopTexts>
-          <TopButton type="filled">CHECKOUT NOW</TopButton>
+          <CheckoutButton />
         </Top>
         <Bottom>
           <Info>
-            <Product>
-              <ProductDetail>
-                <Image src="https://hips.hearstapps.com/vader-prod.s3.amazonaws.com/1614188818-TD1MTHU_SHOE_ANGLE_GLOBAL_MENS_TREE_DASHERS_THUNDER_b01b1013-cd8d-48e7-bed9-52db26515dc4.png?crop=1xw:1.00xh;center,top&resize=480%3A%2A" />
-                <Details>
-                  <ProductName>
-                    <b>Product:</b> JESSIE THUNDER SHOES
-                  </ProductName>
-                  <ProductId>
-                    <b>ID:</b> 93813718293
-                  </ProductId>
-                  <ProductColor color="black" />
-                  <ProductSize>
-                    <b>Size:</b> 37.5
-                  </ProductSize>
-                </Details>
-              </ProductDetail>
-              <PriceDetail>
-                <ProductAmountContainer>
-                  <Add />
-                  <ProductAmount>2</ProductAmount>
-                  <Remove />
-                </ProductAmountContainer>
-                <ProductPrice>$ 30</ProductPrice>
-              </PriceDetail>
-            </Product>
-            <Hr />
-            <Product>
-              <ProductDetail>
-                <Image src="https://i.pinimg.com/originals/2d/af/f8/2daff8e0823e51dd752704a47d5b795c.png" />
-                <Details>
-                  <ProductName>
-                    <b>Product:</b> HAKURA T-SHIRT
-                  </ProductName>
-                  <ProductId>
-                    <b>ID:</b> 93813718293
-                  </ProductId>
-                  <ProductColor color="gray" />
-                  <ProductSize>
-                    <b>Size:</b> M
-                  </ProductSize>
-                </Details>
-              </ProductDetail>
-              <PriceDetail>
-                <ProductAmountContainer>
-                  <Add />
-                  <ProductAmount>1</ProductAmount>
-                  <Remove />
-                </ProductAmountContainer>
-                <ProductPrice>$ 20</ProductPrice>
-              </PriceDetail>
-            </Product>
+            {
+              cart.products.map(product => {
+                return (
+                  <>
+                    <Product>
+                      <ProductDetail>
+                        <Image src={pf + product.img} />
+                        <Details>
+                          <ProductName>
+                            <b>Product: </b> {product.title}
+                          </ProductName>
+                          <ProductId>
+                            <b>ID: </b> {product._id}
+                          </ProductId>
+                          <ProductColor color={product.color} />
+                          <ProductSize>
+                            <b>Size: </b> {product.size}
+                          </ProductSize>
+                        </Details>
+                      </ProductDetail>
+                      <PriceDetail>
+                        <ProductAmountContainer>
+                          <Add />
+                          <ProductAmount>{product.quantity}</ProductAmount>
+                          <Remove />
+                        </ProductAmountContainer>
+                        <ProductPrice>$ {product.price * product.quantity}</ProductPrice>
+                      </PriceDetail>
+                    </Product>
+                    <Hr />
+                  </>
+                )
+              })
+            }
+
           </Info>
           <Summary>
             <SummaryTitle>ORDER SUMMARY</SummaryTitle>
             <SummaryItem>
               <SummaryItemText>Subtotal</SummaryItemText>
-              <SummaryItemPrice>$ 80</SummaryItemPrice>
+              <SummaryItemPrice>$ {cart.totalPrice}</SummaryItemPrice>
             </SummaryItem>
             <SummaryItem>
               <SummaryItemText>Estimated Shipping</SummaryItemText>
@@ -238,9 +307,9 @@ const Cart = () => {
             </SummaryItem>
             <SummaryItem type="total">
               <SummaryItemText>Total</SummaryItemText>
-              <SummaryItemPrice>$ 80</SummaryItemPrice>
+              <SummaryItemPrice>$ {cart.totalPrice}</SummaryItemPrice>
             </SummaryItem>
-            <Button>CHECKOUT NOW</Button>
+            <CheckoutButton />
           </Summary>
         </Bottom>
       </Wrapper>

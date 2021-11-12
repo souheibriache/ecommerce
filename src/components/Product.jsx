@@ -1,7 +1,7 @@
 import { FavoriteBorderOutlined, SearchOutlined, ShoppingCartOutlined } from '@material-ui/icons';
 import React from 'react'
 import styled from 'styled-components'
-
+import {Link} from 'react-router-dom'
 
 const Info = styled.div`
     width: 100%;
@@ -67,17 +67,20 @@ const Icon = styled.div`
 
 
 const Product = ({item}) => {
+    const pf = process.env.REACT_APP_PUBLIC_FOLDER
     return (
         <Container>
             <Circle/>
-            <Image src={item.img} />
+            <Image src={pf+item.img} />
             <Info>
                 <Icon>
                     <ShoppingCartOutlined/>
                 </Icon>
 
                 <Icon>
+                    <Link to={'/product/'+item._id} >
                     <SearchOutlined/>
+                    </Link>
                 </Icon>
 
                 <Icon>
